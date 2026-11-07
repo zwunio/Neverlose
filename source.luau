@@ -887,6 +887,30 @@ function NeverLose:MoreThanHalfY(Value: number)
 	return (NeverLose.ScreenGui.AbsoluteSize.Y / 2) < Value
 end;
 
+function NeverLose:ClampToScreen(Frame: Frame, OffsetX: number, OffsetY: number)
+	local screenWidth = NeverLose.ScreenGui.AbsoluteSize.X
+	local screenHeight = NeverLose.ScreenGui.AbsoluteSize.Y
+	local frameWidth = Frame.AbsoluteSize.X
+	local frameHeight = Frame.AbsoluteSize.Y
+	
+	local posX = OffsetX
+	local posY = OffsetY
+	
+	if posX + frameWidth > screenWidth then
+		posX = screenWidth - frameWidth
+	end
+	
+	if posY + frameHeight > screenHeight then
+		posY = screenHeight - frameHeight
+	end
+	
+	if posX < 0 then posX = 0 end
+	if posY < 0 then posY = 0 end
+	
+	return Vector2.new(posX, posY)
+end;
+
+
 NeverLose.IsStudio = RunService:IsStudio();
 NeverLose.IsMobile = UserInputService.TouchEnabled;
 
@@ -932,8 +956,11 @@ NeverLose.Drag = LPH_NO_VIRTUALIZE(function(InputFrame: Frame, MoveFrame: Frame,
 				Position = UDim2.fromScale(0.5,0.5)
 			});
 		else
+			local absX = startPos.X.Scale * NeverLose.ScreenGui.AbsoluteSize.X + startPos.X.Offset + delta.X
+			local absY = startPos.Y.Scale * NeverLose.ScreenGui.AbsoluteSize.Y + startPos.Y.Offset + delta.Y
+			local clamped = NeverLose:ClampToScreen(MoveFrame, absX, absY)
 			NeverLose.PlayAnimate(MoveFrame,Tween,{
-				Position = position
+				Position = UDim2.new(0, clamped.X, 0, clamped.Y)
 			});
 		end;
 	end;
@@ -1286,13 +1313,17 @@ function NeverLose:CreateOptionWindow(Frame: Frame , Zindex)
 
 	local FollowingThread;
 	local SetPosition = LPH_NO_VIRTUALIZE(function()
-		if NeverLose:MoreThanHalfY(Frame.AbsolutePosition.Y + 65) then
+		local posX = Frame.AbsolutePosition.X + 18
+		local posY = Frame.AbsolutePosition.Y + 65
+		local safePos = NeverLose:ClampToScreen(OptionHandler, posX, posY)
+		
+		if NeverLose:MoreThanHalfY(posY) then
 			OptionHandler.AnchorPoint = Vector2.new(0,1)
+			OptionHandler.Position = UDim2.fromOffset(safePos.X, safePos.Y)
 		else
 			OptionHandler.AnchorPoint = Vector2.new(0,0)
+			OptionHandler.Position = UDim2.fromOffset(safePos.X, safePos.Y)
 		end;
-
-		OptionHandler.Position = UDim2.fromOffset(Frame.AbsolutePosition.X + 18 , Frame.AbsolutePosition.Y + 65);
 	end);
 
 	Window.SetRender = LPH_NO_VIRTUALIZE(function(value)
@@ -1493,7 +1524,10 @@ function NeverLose:CreateColorPicker(HandleFrame: Frame)
 
 	ColorPickerLib.SetRender = LPH_NO_VIRTUALIZE(function(value)
 		if value then
-			ColorPickerHandler.Position = UDim2.new(0,HandleFrame.AbsolutePosition.X + 20 , 0 ,HandleFrame.AbsolutePosition.Y + 75);
+			local posX = HandleFrame.AbsolutePosition.X + 20
+			local posY = HandleFrame.AbsolutePosition.Y + 75
+			local safePos = NeverLose:ClampToScreen(ColorPickerHandler, posX, posY)
+			ColorPickerHandler.Position = UDim2.new(0, safePos.X, 0, safePos.Y);
 
 			NeverLose.PlayAnimate(ColorPickerHandler,SlowyTween , {
 				BackgroundTransparency = 0.035
@@ -2864,13 +2898,17 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 			end)));
 
 			local SetPosition = LPH_NO_VIRTUALIZE(function()
-				if NeverLose:MoreThanHalfY(Dropdown.AbsolutePosition.Y + 85) then
+				local posX = Dropdown.AbsolutePosition.X + (DropdownHandler.AbsoluteSize.X / 2)
+				local posY = Dropdown.AbsolutePosition.Y + 85
+				local safePos = NeverLose:ClampToScreen(DropdownHandler, posX - DropdownHandler.AbsoluteSize.X/2, posY)
+				
+				if NeverLose:MoreThanHalfY(posY) then
 					DropdownHandler.AnchorPoint = Vector2.new(0.5,1)
+					DropdownHandler.Position = UDim2.fromOffset(safePos.X + DropdownHandler.AbsoluteSize.X/2, safePos.Y)
 				else
 					DropdownHandler.AnchorPoint = Vector2.new(0.5,0)
+					DropdownHandler.Position = UDim2.fromOffset(safePos.X + DropdownHandler.AbsoluteSize.X/2, safePos.Y)
 				end;
-
-				DropdownHandler.Position = UDim2.fromOffset(Dropdown.AbsolutePosition.X + (DropdownHandler.AbsoluteSize.X / 2), Dropdown.AbsolutePosition.Y + 85);
 
 			end);
 
@@ -3320,7 +3358,10 @@ function NeverLose:CreateToolTips(Container: Frame , Name: string , Content: str
 
 	ToolTip.SetRender = LPH_NO_VIRTUALIZE(function(value)
 		if value then
-			Tooltips.Position = UDim2.fromOffset(Container.AbsolutePosition.X + Container.AbsoluteSize.X , Container.AbsolutePosition.Y + (Container.AbsoluteSize.Y + 25));
+			local posX = Container.AbsolutePosition.X + Container.AbsoluteSize.X
+			local posY = Container.AbsolutePosition.Y + (Container.AbsoluteSize.Y + 25)
+			local safePos = NeverLose:ClampToScreen(Tooltips, posX, posY)
+			Tooltips.Position = UDim2.fromOffset(safePos.X, safePos.Y)
 
 			NeverLose.PlayAnimate(Tooltips , SlowyTween , {
 				BackgroundTransparency = 0.075
@@ -3835,7 +3876,7 @@ function NeverLose:CreateWindow(Config)
 		Logo = NeverLose.GlobalLogo,
 		Name = "Neverlose",
 		Content = "Counter-Strike 2",
-		Size = UDim2.new(0, 640, 0, 480),
+		Size = NeverLose.IsMobile and NeverLose.Scales.Mobile or UDim2.new(0, 640, 0, 480),
 		ConfigFolder = "NeverLoseConfigs",
 		Enable3DRenderer = false,
 		Keybind = "Insert"
@@ -5103,7 +5144,10 @@ function NeverLose:CreateWindow(Config)
 
 		ConfigLib.SetRender = LPH_NO_VIRTUALIZE(function(value)
 			if value then
-				ConfigMenu.Position = UDim2.fromOffset(ConfigFrame.AbsolutePosition.X + 110 , ConfigFrame.AbsolutePosition.Y + 96)
+				local posX = ConfigFrame.AbsolutePosition.X + 110
+				local posY = ConfigFrame.AbsolutePosition.Y + 96
+				local safePos = NeverLose:ClampToScreen(ConfigMenu, posX, posY)
+				ConfigMenu.Position = UDim2.fromOffset(safePos.X, safePos.Y)
 
 				NeverLose.PlayAnimate(ConfigMenu , SlowyTween , {
 					BackgroundTransparency = 0.035,
